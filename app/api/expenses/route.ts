@@ -56,13 +56,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const { description, amount, category } = await req.json();
+    const { description, amount, category, shiftId } = await req.json();
 
-    if (!description || !amount) {
+    if (!description || amount === undefined || amount === null) {
       return NextResponse.json(
         { error: "Description and amount are required" },
         { status: 400 }
       );
+    }
+
+    // Si se proporciona un shiftId, verificar que el turno pertenece al usuario
+    if (shiftId) {
+      const shift = await prisma.shift.findUnique({
+        where: { id: shiftId },
+      });
+      if (!shift || shift.userId !== parseInt(userId) || shift.closed) {
+        return NextResponse.json(
+          { error: "Invalid or closed shift" },
+          { status: 400 }
+        );
+      }
     }
 
     const expense = await prisma.expense.create({
@@ -71,6 +84,10 @@ export async function POST(req: Request) {
         amount: parseFloat(amount),
         category: category || "Otros",
         userId: parseInt(userId),
+        ...(shiftId && { shiftId }),
+      },
+      include: {
+        user: { select: { name: true } },
       },
     });
 

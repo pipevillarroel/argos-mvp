@@ -21,8 +21,44 @@ model User {
   updatedAt DateTime  @updatedAt
 
   // Relaciones
+  expenses   Expense[]
+  sales      Sale[]
+  shifts     Shift[]
+  adjustments Adjustment[]
+}
+
+// Modelo de productos (catálogo)
+model Product {
+  id        Int       @id @default(autoincrement())
+  name      String
+  price     Float
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relaciones
+  sales     Sale[]
+
+  @@index([active])
+}
+
+// Modelo de turnos
+model Shift {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  closed    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relaciones
   expenses  Expense[]
   sales     Sale[]
+
+  @@index([userId])
+  @@index([closed])
 }
 
 // Modelo de gastos
@@ -37,10 +73,15 @@ model Expense {
 
   // Relación con usuario que lo creó
   userId      Int
-  user        User    @relation(fields: [userId], references: [id])
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relación con turno (opcional)
+  shiftId     Int?
+  shift       Shift?  @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([date])
+  @@index([shiftId])
 }
 
 // Modelo de ventas
@@ -54,8 +95,41 @@ model Sale {
 
   // Relación con usuario que lo creó
   userId      Int
-  user        User    @relation(fields: [userId], references: [id])
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relación con turno (opcional)
+  shiftId     Int?
+  shift       Shift?  @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  // Relación con producto (opcional)
+  productId   Int?
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([date])
+  @@index([shiftId])
+  @@index([productId])
+}
+
+// Modelo de ajustes/reversas (auditoría)
+model Adjustment {
+  id          Int     @id @default(autoincrement())
+  type        String  // "reversal" o "correction"
+  reason      String
+  originalAmount Float
+  adjustmentAmount Float
+  newAmount   Float
+  targetId    Int     // ID de la venta o gasto original
+  targetType  String  // "SALE" o "EXPENSE"
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relación con el usuario que hizo el ajuste
+  userId      Int
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([targetId])
   @@index([date])
 }

@@ -56,20 +56,54 @@ export async function POST(req: Request) {
       );
     }
 
-    const { description, amount } = await req.json();
+    const { description, amount, productId, shiftId } = await req.json();
 
-    if (!description || !amount) {
+    if (!description || amount === undefined || amount === null) {
       return NextResponse.json(
         { error: "Description and amount are required" },
         { status: 400 }
       );
     }
 
+    // Si se proporciona un shiftId, verificar que el turno pertenece al usuario
+    if (shiftId) {
+      const shift = await prisma.shift.findUnique({
+        where: { id: shiftId },
+      });
+      if (!shift || shift.userId !== parseInt(userId) || shift.closed) {
+        return NextResponse.json(
+          { error: "Invalid or closed shift" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Si se proporciona productId, obtener el precio del producto
+    let finalAmount = parseFloat(amount);
+    if (productId) {
+      const product = await prisma.product.findUnique({
+        where: { id: productId },
+      });
+      if (!product || !product.active) {
+        return NextResponse.json(
+          { error: "Product not found or inactive" },
+          { status: 400 }
+        );
+      }
+      finalAmount = product.price;
+    }
+
     const sale = await prisma.sale.create({
       data: {
         description,
-        amount: parseFloat(amount),
+        amount: finalAmount,
         userId: parseInt(userId),
+        ...(productId && { productId }),
+        ...(shiftId && { shiftId }),
+      },
+      include: {
+        product: true,
+        user: { select: { name: true } },
       },
     });
 
