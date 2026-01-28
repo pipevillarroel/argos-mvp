@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Modelo de usuario (trabajadores y jefe)
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String
+  role      String    @default("WORKER") // MANAGER o WORKER
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relaciones
+  expenses  Expense[]
+  sales     Sale[]
+}
+
+// Modelo de gastos
+model Expense {
+  id          Int     @id @default(autoincrement())
+  description String
+  amount      Float
+  category    String  @default("Otros") // Ej: Combustible, Comida, Transporte, etc.
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relación con usuario que lo creó
+  userId      Int
+  user        User    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([date])
+}
+
+// Modelo de ventas
+model Sale {
+  id          Int     @id @default(autoincrement())
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relación con usuario que lo creó
+  userId      Int
+  user        User    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([date])
+}
